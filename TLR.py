@@ -9,52 +9,99 @@ def normalizeImage(img):
     for x in range(0, width - 1):
         for y in range(0, height - 1):
             s = np.int16(img[x,y,0]) + np.int16(img[x,y,1]) + np.int16(img[x,y,2])
+            s=np.float64(s)
             if(s > 0):
-                img[x,y,2] = np.uint8((img[x,y,2] / s) * 255)
-                img[x,y,1] = np.uint8((img[x,y,1] / s) * 255)
-                img[x,y,0] = np.uint8((img[x,y,0] / s) * 255)
+                img[x,y,2] = (img[x,y,2] / s) * 255
+                img[x,y,1] = (img[x,y,1] / s) * 255
+                img[x,y,0] = (img[x,y,0] / s) * 255
             else:
-                img[x,y,0] = np.uint8(0)
-                img[x,y,1] = np.uint8(0)
-                img[x,y,2] = np.uint8(0)
-    return img
+                img[x,y,0] = 0
+                img[x,y,1] = 0
+                img[x,y,2] = 0
+    return cv2.normalize( img, None, 0, 255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
 def filterImg(img, Ch1Min, Ch1Max, Ch2Min, Ch2Max, Ch3Min, Ch3Max):
     blueCh, greenCh, redCh  = cv2.split(img)
-    _, blueMask = cv2.threshold(blueCh, Ch1Min, Ch1Max, cv2.THRESH_BINARY)
-    _, greenMask = cv2.threshold(greenCh, Ch2Min, Ch2Max, cv2.THRESH_BINARY)
-    _, redMask = cv2.threshold(redCh, Ch3Min, Ch3Max, cv2.THRESH_BINARY)
-    mask = cv2.bitwise_and(blueMask, mask=greenMask)
-    mask = cv2.bitwise_and(mask, mask=redMask)
-    return mask
+    blueMask = cv2.inRange(redCh, Ch1Min, Ch1Max)
+    greenMask = cv2.inRange(greenCh, Ch2Min, Ch2Max)
+    redMask = cv2.inRange(blueCh, Ch3Min, Ch3Max)
+    cv2.imshow("blue", redMask)
+    cv2.imshow("green", greenMask)
+    cv2.imshow("red", blueMask)
 
+    maskTemp = cv2.bitwise_and(blueMask, greenMask)
+    cv2.imshow("temp", maskTemp)
+    mask = cv2.bitwise_and(maskTemp, redMask)
+    cv2.imshow("mask", mask)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+    return mask 
 
+def ROIHistogram(img):
+    r = cv2.selectROI(img)
+    img_cropRGB = img[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+    img_cropHSV = cv2.cvtColor(img_cropRGB, cv2.COLOR_BGR2HSV)
+    cv2.imshow("Crop",img_cropRGB)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+    b, g, r = cv2.split(img_cropRGB)
+    h, s, v = cv2.split(img_cropHSV)
+    plt.figure("Hist", figsize=(6.4,2*4.8))
+    plt.subplot(4,1,1)
+    plt.hist(np.array(b).flatten(), bins=20, color="b")
+    plt.subplot(4,1,2)
+    plt.hist(np.array(g).flatten(), bins=20, color="g")
+    plt.subplot(4,1,3)
+    plt.hist(np.array(r).flatten(), bins=20, color="r")
+    plt.subplot(4,1,4)
+    plt.hist(np.array(h).flatten(), bins=14, color="b")
+    #plt.hist(np.array(s).flatten(), bins=10, color="g")
+    #plt.hist(np.array(v).flatten(), bins=10, color="r")
+    plt.show("Hist")
+    
+ 
 img = cv2.imread("37596.png")
+#img = cv2.imread("15096.png")
 cv2.imshow("Slika", img)
 cv2.waitKey()
 cv2.destroyWindow("Slika")
 
+#ROIHistogram(img)
+
 img_norm = normalizeImage(img)
-cv2.imshow("Normalized", img_norm)
+cv2.imshow("Normalized", img_norm) 
 cv2.waitKey()
 cv2.destroyWindow("Normalized")
 
-mask1 = filterImg(img_norm, 0, 150, 0, 150, 150, 255)
-mask2 = filterImg(img_norm, 0, 150, 150, 255, 150, 255)
-mask3 = filterImg(img_norm, 0, 150, 240, 255, 220, 255)
-mask = cv2.bitwise_or(mask1, maskk=mask2)
-mask = cv2.bitwise_or(mask, mask=mask3)
-mask_final = cv2.merge((mask, mask, mask))
-
-img_filtered = cv2.bitwise_and(img, mask=mask_final)
-cv2.imshow("Filter", mask)
-cv2.waitKey()
-cv2.destroyWindow("Filter")
+#ROIHistogram(img_norm)
 
 img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 cv2.imshow("Hsv", img_hsv)
 cv2.waitKey()
 cv2.destroyWindow("Hsv")
+
+mask1 = filterImg(img , 25, 75, 100, 255, 0, 150 )
+mask2 = filterImg(img_hsv, 100, 255, 100, 255, 50, 80)
+mask3 = filterImg(img, 120, 255, 15, 180, 0, 100)
+mask4 = filterImg(img_hsv, 100, 255, 100, 255, 0, 25)
+maskTemp1 = cv2.bitwise_or(mask1, mask2)
+maskTemp2 = cv2.bitwise_or(mask3, mask4)
+mask_final = cv2.bitwise_or(maskTemp1, maskTemp2)
+
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3), (1, 1))
+mask_erode = cv2.morphologyEx(mask_final, cv2.MORPH_OPEN, kernel)
+
+cv2.imshow("Mask1", mask1)
+cv2.imshow("Mask2", mask2)
+cv2.imshow("Mask3", mask3)
+cv2.imshow("Mask4", mask4)
+cv2.imshow("Erode", mask_erode)
+
+img_filtered = cv2.bitwise_and(img, img, mask=mask_final)
+cv2.imshow("Filter", img_filtered)
+cv2.waitKey()
+cv2.destroyWindow("Filter")
+
 
 img_blur = cv2.blur(img_norm, (5, 5))
 cv2.imshow("Blur", img_blur)
