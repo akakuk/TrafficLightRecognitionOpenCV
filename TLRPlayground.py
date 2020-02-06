@@ -62,34 +62,47 @@ def ROIHistogram(img):
  
 img = cv2.imread("37596.png")
 #img = cv2.imread("15096.png")
+#img = cv2.imread("22008.png")
+#img = cv2.imread("14888.png")
 cv2.imshow("Slika", img)
 cv2.waitKey()
 cv2.destroyWindow("Slika")
-
+ 
 #ROIHistogram(img)
 
-img_norm = normalizeImage(img)
-cv2.imshow("Normalized", img_norm) 
-cv2.waitKey()
-cv2.destroyWindow("Normalized")
+#img_norm = normalizeImage(img)
+#cv2.imshow("Normalized", img_norm) 
+#cv2.waitKey()
+#cv2.destroyWindow("Normalized")
 
 #ROIHistogram(img_norm)
+
+img_blur = cv2.blur(img, (5, 5))
+cv2.imshow("Blur", img_blur)
+cv2.waitKey()
+cv2.destroyWindow("Blur")
 
 img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 cv2.imshow("Hsv", img_hsv)
 cv2.waitKey()
 cv2.destroyWindow("Hsv")
 
-mask1 = filterImg(img , 25, 75, 100, 255, 0, 150 )
-mask2 = filterImg(img_hsv, 100, 255, 100, 255, 50, 80)
-mask3 = filterImg(img, 120, 255, 15, 180, 0, 100)
-mask4 = filterImg(img_hsv, 100, 255, 100, 255, 0, 25)
+img_hsv_blur = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
+cv2.imshow("Hsv", img_hsv_blur)
+cv2.waitKey()
+cv2.destroyWindow("Hsv")
+
+mask1 = filterImg(img_blur , 25, 75, 100, 255, 0, 150)
+mask2 = filterImg(img_hsv_blur, 100, 255, 100, 255, 50, 80)
+mask3 = filterImg(img_blur, 120, 255, 15, 180, 0, 100)
+mask4 = filterImg(img_hsv_blur, 100, 255, 100, 255, 0, 25)
 maskTemp1 = cv2.bitwise_or(mask1, mask2)
 maskTemp2 = cv2.bitwise_or(mask3, mask4)
 mask_final = cv2.bitwise_or(maskTemp1, maskTemp2)
 
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3), (1, 1))
 mask_erode = cv2.morphologyEx(mask_final, cv2.MORPH_OPEN, kernel)
+mask_erode = cv2.morphologyEx(mask_erode, cv2.MORPH_CLOSE, kernel)
 
 cv2.imshow("Mask1", mask1)
 cv2.imshow("Mask2", mask2)
@@ -97,37 +110,64 @@ cv2.imshow("Mask3", mask3)
 cv2.imshow("Mask4", mask4)
 cv2.imshow("Erode", mask_erode)
 
-img_filtered = cv2.bitwise_and(img, img, mask=mask_final)
+img_filtered = cv2.bitwise_and(img, img, mask=mask_erode)
 cv2.imshow("Filter", img_filtered)
 cv2.waitKey()
 cv2.destroyWindow("Filter")
-
-
-img_blur = cv2.blur(img_norm, (5, 5))
-cv2.imshow("Blur", img_blur)
-cv2.waitKey()
-cv2.destroyWindow("Blur")
 
 img_grayscale = cv2.cvtColor(img_filtered, cv2.COLOR_BGR2GRAY)
 cv2.imshow("Grayscale", img_grayscale)
 cv2.waitKey()
 cv2.destroyWindow("Grayscale")
 
+ret, img_globalThreshold = cv2.threshold(img_grayscale, 15, 255, cv2.THRESH_BINARY)
+cv2.imshow("GlobalThreshold", img_globalThreshold)
+cv2.waitKey()
+cv2.destroyAllWindows()
+
+circles = cv2.HoughCircles(img_globalThreshold , cv2.HOUGH_GRADIENT, 1.2, 100, param1=255, param2=8, minRadius=1, maxRadius=20)
+#print(circles)
+if circles is not None:
+    circles = np.uint16(np.around(circles))
+    for i in circles[0,:]:
+        # draw the outer circle
+        cv2.circle(img,(i[0],i[1]),i[2],(0,255,0),2)
+        # draw the center of the circle
+        cv2.circle(img,(i[0],i[1]),2,(0,0,255),3)
+
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
 img_tophat = cv2.morphologyEx(img_grayscale, cv2.MORPH_TOPHAT, kernel)
-cv2.imshow("Tophat", img_tophat)
+cv2.imshow("Circles", img)
 cv2.waitKey()
-cv2.destroyWindow("Tophat")
+cv2.destroyWindow("Circles")
 
-ret, img_globalThreshold = cv2.threshold(img_tophat, 100, 255, cv2.THRESH_BINARY)
-img_adaptiveThresholdMean = cv2.adaptiveThreshold(img_tophat, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 5)
-img_adaptiveThresholdGauss = cv2.adaptiveThreshold(img_tophat, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, 5)
-cv2.imshow("GlobalThreshold", img_globalThreshold)
-cv2.imshow("MeanThreshold", img_adaptiveThresholdMean)
-cv2.imshow("GaussThreshold", img_adaptiveThresholdGauss)
-cv2.imshow("Slika", img)
+
+img_grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+
+img_edges = cv2.Canny(img_grayscale,50,150,apertureSize = 3)
+cv2.imshow("Edge", img_edges)
+cv2.waitKey()
+lines = cv2.HoughLinesP(img_edges,1,np.pi/180, 30, minLineLength=15, maxLineGap=20 )
+print("lines:\n")
+print(lines)
+if lines is not None:
+    for line in lines: 
+        print(line)
+        x1 = line[0,0]
+        y1 = line[0,1]
+        x2 = line[0,2]
+        y2 = line[0,3]
+        cv2.line(img,(x1,y1), (x2,y2), (0,0,255),1) 
+
+cv2.imshow("Lines",img)
+
+#img_adaptiveThresholdMean = cv2.adaptiveThreshold(img_tophat, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 5)
+#img_adaptiveThresholdGauss = cv2.adaptiveThreshold(img_tophat, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, 5)
+#cv2.imshow("MeanThreshold", img_adaptiveThresholdMean)
+#cv2.imshow("GaussThreshold", img_adaptiveThresholdGauss)
+#cv2.imshow("Slika", img)
 
 cv2.waitKey()
-
 cv2.destroyAllWindows()
 cv2.waitKey()
