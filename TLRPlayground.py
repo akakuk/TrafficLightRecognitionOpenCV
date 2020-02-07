@@ -67,6 +67,10 @@ img = cv2.imread("37596.png")
 cv2.imshow("Slika", img)
 cv2.waitKey()
 cv2.destroyWindow("Slika")
+originalImg = img.copy()
+#width, height, channel = img.shape
+#print(img.shape[1])
+img = img[0:int(img.shape[0]/2), 0:int(img.shape[1]), 0:3].copy()
  
 #ROIHistogram(img)
 
@@ -127,22 +131,34 @@ cv2.destroyAllWindows()
 
 circles = cv2.HoughCircles(img_globalThreshold , cv2.HOUGH_GRADIENT, 1.2, 100, param1=255, param2=8, minRadius=1, maxRadius=20)
 #print(circles)
+#tlr_mask = np.zeros((img.shape[0], img.shape[1], 1), np.uint8)
+ROIs = []
 if circles is not None:
     circles = np.uint16(np.around(circles))
     for i in circles[0,:]:
         # draw the outer circle
-        cv2.circle(img,(i[0],i[1]),i[2],(0,255,0),2)
+        cv2.circle(img,(i[0],i[1]),i[2],(0,255,0),1)
+        ROIs.append(img[i[1]-i[2]*8:i[1]+i[2]*8, i[0]-i[2]*4:i[0]+i[2]*4, 0:3])
+        #cv2.rectangle(tlr_mask, (i[0]-i[2]*4, i[1]-i[2]*8), (i[0]+i[2]*4, i[1]+i[2]*8),(255), -1)
         # draw the center of the circle
-        cv2.circle(img,(i[0],i[1]),2,(0,0,255),3)
+        cv2.circle(img,(i[0],i[1]),1,(0,0,255),1)
 
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
 img_tophat = cv2.morphologyEx(img_grayscale, cv2.MORPH_TOPHAT, kernel)
 cv2.imshow("Circles", img)
+#cv2.imshow("TLRMask",tlr_mask)
 cv2.waitKey()
 cv2.destroyWindow("Circles")
+#cv2.destroyWindow("TLRMask")
 
 
-img_grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+for roi in ROIs:
+    cv2.imshow("ROI", roi)
+    cv2.waitKey()
+    cv2.destroyWindow("ROI")
+
+#img_filtered = cv2.bitwise_and(img, img, mask=tlr_mask)
+img_grayscale = cv2.cvtColor(img_filtered , cv2.COLOR_BGR2GRAY)
 
 
 img_edges = cv2.Canny(img_grayscale,50,150,apertureSize = 3)
