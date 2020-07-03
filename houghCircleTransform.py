@@ -8,15 +8,37 @@ import matplotlib.image as mpimg
 
 start = time.perf_counter()
 
+
+ 
+img = cv2.imread("25914.png")
+#img = cv2.imread("houghCircle.png")
+img = img[0:int(img.shape[0]/2), 0:int(img.shape[1]), 0:3].copy()
+img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img_blur = cv2.blur(img_gray, (5, 5))
+img_non_filter = cv2.Canny(img_blur, 100, 200)
+
+
+ 
+
+
 imgOrg = cv2.imread("imgThreshold.png")
-img = cv2.cvtColor(imgOrg, cv2.COLOR_BGR2GRAY)
-img = cv2.Canny(img, 100, 200)
-cv2.imshow("asda", img)
+img_filter = cv2.cvtColor(imgOrg, cv2.COLOR_BGR2GRAY)
+#img_filter = cv2.Canny(img_filter, 100, 200)
+
+img_and = cv2.bitwise_and(img_filter, img_non_filter)
+
+cv2.imshow("Filter", img_filter)
+cv2.imshow("No filter", img_non_filter)
+cv2.imshow("And", img_and)
 cv2.waitKey()
-cv2.destroyWindow("asda")
+cv2.destroyAllWindows()
+
+img = img_filter
+imgOrg = img
 maxRad = 12
-minRad = 1
-acc = np.zeros((img.shape[1], img.shape[0], maxRad-minRad))
+minRad = 2
+
+acc = np.zeros((img.shape[1], img.shape[0], maxRad - minRad))
 #print(img.shape[1])
 for w in range(0, img.shape[1] - 1):
     for h in range(0, img.shape[0] - 1):
@@ -51,7 +73,7 @@ for r  in range(acc.shape[2] - 1,  1, -1):
                 radSumA = acc.shape[0] - b
             else:
                 radSumB =  r + minRad - 1
-            if acc[a, b, r] > 200 and np.max(acc[a-radSumA:a+radSumA, b-radSumB:b+radSumB, r-1:r+1]) <= acc[a, b, r]:
+            if acc[a, b, r] > 150 and np.max(acc[a-radSumA:a+radSumA, b-radSumB:b+radSumB, r-1:r+1]) <= acc[a, b, r]:
                 for th in range(0, 360):
                     x = int(round(a - (r + minRad - 1) * np.cos((th * np.pi) / 180)))
                     y = int(round(b - (r + minRad - 1) * np.sin((th * np.pi) / 180)))
@@ -62,7 +84,7 @@ for r  in range(acc.shape[2] - 1,  1, -1):
                                 isPart = isPart + 1
                             else:
                                 notPart = notPart + 1
-                if isPart / (isPart + notPart) > 0.1:
+                if isPart / (isPart + notPart) >= 0.0:
                     cv2.circle(imgOrg, (a - 1, b - 1), r + minRad - 1, (0, 0, 255), 1)
                     acc[a-radSumA:a+radSumA, b-radSumB:b+radSumB, 0:r] = 0
                 circlePoints.clear()
@@ -71,7 +93,7 @@ for r  in range(acc.shape[2] - 1,  1, -1):
 end = time.perf_counter()
 print(end - start)
 cv2.imshow("img", imgOrg)
-cv2.imwrite("houghCircle.png",imgOrg)
+cv2.imwrite("houghCircle.png", imgOrg)
 cv2.waitKey()
 cv2.destroyAllWindows()
 lum_img = acc[:, :, 5]
